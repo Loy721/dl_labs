@@ -25,6 +25,32 @@ def softmax_loss_naive(W, X, y, reg):
     loss = 0.0
     dW = np.zeros_like(W)
 
+    num_train = X.shape[0]
+    num_classes = W.shape[1]
+
+    for i in range(num_train):
+        scores = X[i].dot(W)
+        # вычитаем максимальное значение, чтобы не было переполнения из-за экспоненты
+        scores -= np.max(scores)
+
+        exp_scores = np.exp(scores)
+        probs = exp_scores / np.sum(exp_scores)
+
+        loss += -np.log(probs[y[i]])
+
+        # Compute gradient
+        for j in range(num_classes):
+            dscore = probs[j]
+            if j == y[i]:
+                dscore -= 1
+            dW[:, j] += dscore * X[i]
+
+    loss /= num_train
+    dW /= num_train
+
+    loss += reg * np.sum(W * W)
+    dW += 2 * reg * W
+
     #############################################################################
     # TODO: Compute the softmax loss and its gradient using explicit loops.     #
     # Store the loss in loss and the gradient in dW. If you are not careful     #
@@ -33,7 +59,6 @@ def softmax_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -58,7 +83,27 @@ def softmax_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    loss = 0.0
+    dW = np.zeros_like(W)
+
+    num_train = X.shape[0]
+
+    scores = np.dot(X, W)
+    scores -= np.max(scores, axis=1, keepdims=True)
+
+    exp_scores = np.exp(scores)
+    probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
+
+    correct_probs = probs[np.arange(num_train), y]
+    loss = -np.sum(np.log(correct_probs))
+    loss /= num_train
+    loss += 0.5 * reg * np.sum(W * W)
+
+    dscores = probs
+    dscores[np.arange(num_train), y] -= 1
+    dW = np.dot(X.T, dscores)
+    dW /= num_train
+    dW += reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
