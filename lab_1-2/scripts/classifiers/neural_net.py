@@ -80,14 +80,15 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
-
+        scores = X.dot(W1) + b1  # Прямой проход через первый слой
+        scores_relu = np.maximum(0, scores)  # Применение функции активации ReLU
+        scores_final = scores_relu.dot(W2) + b2  # Прямой проход через второй слой
+        scores = scores_final
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # If the targets are not given then jump out, we're done
         if y is None:
             return scores
-
         # Compute the loss
         loss = None
         #############################################################################
@@ -98,7 +99,14 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # Вычисляем log loss
+        exp_scores = np.exp(scores_final)
+        probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
+
+        correct_logprobs = -np.log(probs[range(N), y])
+        data_loss = np.sum(correct_logprobs) / N
+        reg_loss = 0.5 * reg * (np.linalg.norm(W1) + np.linalg.norm(W2))  # Регуляризационная потеря
+        loss = data_loss + reg_loss
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -111,7 +119,26 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # Вычисление градиента потерь по оценкам классов
+        dscores = probs.copy()  # Создание копии массива вероятностей
+        dscores[range(N), y] -= 1  # ведет к уменьшению градиента правильного класса и увеличению его антиградиента
+        dscores /= N  # Нормализация по размеру мини-батча
+
+        # Градиенты по параметрам второго слоя
+        grads['W2'] = scores_relu.T.dot(dscores)  # Градиент по весам W2
+        grads['b2'] = np.sum(dscores, axis=0, keepdims=True)  # Градиент по смещению b2
+
+        # Градиенты по скрытому слою
+        dhidden = dscores.dot(W2.T)  # Градиент по скрытому слою
+        dhidden[scores_relu <= 0] = 0  # Обнуляем градиенты для неактивированных нейронов
+
+        # Градиенты по параметрам первого слоя
+        grads['W1'] = X.T.dot(dhidden)  # Градиент по весам W1
+        grads['b1'] = np.sum(dhidden, axis=0, keepdims=True)  # Градиент по смещению b1
+
+        # Добавление градиента регуляризации
+        grads['W2'] += reg * W2  # Градиент регуляризации по W2
+        grads['W1'] += reg * W1  # Градиент регуляризации по W1
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -156,7 +183,9 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            random_indexes = np.random.choice(X.shape[0], size=batch_size, replace=True)
+            X_batch = X[random_indexes]
+            y_batch = y[random_indexes]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -172,7 +201,8 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            for layer in grads.keys():
+                self.params[layer] = self.params[layer] - learning_rate * grads[layer]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -218,7 +248,8 @@ class TwoLayerNet(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        scores = self.loss(X)
+        y_pred = np.argmax(scores, axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
