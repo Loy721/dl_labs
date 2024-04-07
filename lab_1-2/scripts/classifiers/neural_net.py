@@ -21,31 +21,36 @@ class TwoLayerNet(object):
     The outputs of the second fully-connected layer are the scores for each class.
     """
 
-    def __init__(self, input_size, hidden_size, output_size, std=1e-4):
+    def __init__(self, input_size, hidden_size1, hidden_size2, output_size, std=1e-4):
         """
         Initialize the model. Weights are initialized to small random values and
         biases are initialized to zero. Weights and biases are stored in the
         variable self.params, which is a dictionary with the following keys:
 
-        W1: First layer weights; has shape (D, H)
-        b1: First layer biases; has shape (H,)
-        W2: Second layer weights; has shape (H, C)
-        b2: Second layer biases; has shape (C,)
+        W1: First layer weights; has shape (D, H1)
+        b1: First layer biases; has shape (H1,)
+        W2: Second layer weights; has shape (H1, H2)
+        b2: Second layer biases; has shape (H2,)
+        W3: Third layer weights; has shape (H2, C)
+        b3: Third layer biases; has shape (C,)
 
         Inputs:
         - input_size: The dimension D of the input data.
-        - hidden_size: The number of neurons H in the hidden layer.
+        - hidden_size1: The number of neurons H1 in the first hidden layer.
+        - hidden_size2: The number of neurons H2 in the second hidden layer.
         - output_size: The number of classes C.
         """
         self.params = {}
-        self.params['W1'] = std * np.random.randn(input_size, hidden_size)
-        self.params['b1'] = np.zeros(hidden_size)
-        self.params['W2'] = std * np.random.randn(hidden_size, output_size)
-        self.params['b2'] = np.zeros(output_size)
+        self.params['W1'] = std * np.random.randn(input_size, hidden_size1)
+        self.params['b1'] = np.zeros(hidden_size1)
+        self.params['W2'] = std * np.random.randn(hidden_size1, hidden_size2)
+        self.params['b2'] = np.zeros(hidden_size2)
+        self.params['W3'] = std * np.random.randn(hidden_size2, output_size)
+        self.params['b3'] = np.zeros(output_size)
 
     def loss(self, X, y=None, reg=0.0):
         """
-        Compute the loss and gradients for a two layer fully connected neural
+        Compute the loss and gradients for a three-layer fully connected neural
         network.
 
         Inputs:
@@ -69,6 +74,7 @@ class TwoLayerNet(object):
         # Unpack variables from the params dictionary
         W1, b1 = self.params['W1'], self.params['b1']
         W2, b2 = self.params['W2'], self.params['b2']
+        W3, b3 = self.params['W3'], self.params['b3']
         N, D = X.shape
 
         # Compute the forward pass
@@ -81,20 +87,26 @@ class TwoLayerNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         scores = X.dot(W1) + b1  # Прямой проход через первый слой
-        scores_relu = np.maximum(0, scores)  # Применение функции активации ReLU
-        scores_final = scores_relu.dot(W2) + b2  # Прямой проход через второй слой
+        scores_relu1 = np.maximum(0, scores)  # Применение функции активации ReLU
+
+        scores_hidden = scores_relu1.dot(W2) + b2  # Прямой проход через второй слой
+        scores_relu2 = np.maximum(0, scores_hidden)  # Применение функции активации ReLU
+
+        scores_final = scores_relu2.dot(W3) + b3  # Прямой проход через третий слой
         scores = scores_final
+
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # If the targets are not given then jump out, we're done
         if y is None:
             return scores
+
         # Compute the loss
         loss = None
         #############################################################################
         # TODO: Finish the forward pass, and compute the loss. This should include  #
-        # both the data loss and L2 regularization for W1 and W2. Store the result  #
-        # in the variable loss, which should be a scalar. Use the Softmax           #
+        # both the data loss and L2 regularization for W1, W2, and W3. Store the    #
+        # result in the variable loss, which should be a scalar. Use the Softmax    #
         # classifier loss.                                                          #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -105,7 +117,7 @@ class TwoLayerNet(object):
 
         correct_logprobs = -np.log(probs[range(N), y])
         data_loss = np.sum(correct_logprobs) / N
-        reg_loss = 0.5 * reg * (np.linalg.norm(W1) + np.linalg.norm(W2))  # Регуляризационная потеря
+        reg_loss = 0.5 * reg * (np.linalg.norm(W1) + np.linalg.norm(W2) + np.linalg.norm(W3))  # Регуляризационная потеря
         loss = data_loss + reg_loss
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -124,19 +136,28 @@ class TwoLayerNet(object):
         dscores[range(N), y] -= 1  # ведет к уменьшению градиента правильного класса и увеличению его антиградиента
         dscores /= N  # Нормализация по размеру мини-батча
 
-        # Градиенты по параметрам второго слоя
-        grads['W2'] = scores_relu.T.dot(dscores)  # Градиент по весам W2
-        grads['b2'] = np.sum(dscores, axis=0, keepdims=True)  # Градиент по смещению b2
+        # Градиенты по параметрам третьего слоя
+        grads['W3'] = scores_relu2.T.dot(dscores)  # Градиент по весам W3
+        grads['b3'] = np.sum(dscores, axis=0, keepdims=True)  # Градиент по смещению b3
 
-        # Градиенты по скрытому слою
-        dhidden = dscores.dot(W2.T)  # Градиент по скрытому слою
-        dhidden[scores_relu <= 0] = 0  # Обнуляем градиенты для неактивированных нейронов
+        # Градиенты по скрытому слою 2
+        dhidden2 = dscores.dot(W3.T)  # Градиент по скрытому слою
+        dhidden2[scores_relu2 <= 0] = 0  # Обнуляем градиенты для неактивированных нейронов
+
+        # Градиенты по параметрам второго слоя
+        grads['W2'] = scores_relu1.T.dot(dhidden2)  # Градиент по весам W2
+        grads['b2'] = np.sum(dhidden2, axis=0, keepdims=True)  # Градиент по смещению b2
+
+        # Градиенты по скрытому слою 1
+        dhidden1 = dhidden2.dot(W2.T)  # Градиент по скрытому слою
+        dhidden1[scores_relu1 <= 0] = 0  # Обнуляем градиенты для неактивированных нейронов
 
         # Градиенты по параметрам первого слоя
-        grads['W1'] = X.T.dot(dhidden)  # Градиент по весам W1
-        grads['b1'] = np.sum(dhidden, axis=0, keepdims=True)  # Градиент по смещению b1
+        grads['W1'] = X.T.dot(dhidden1)  # Градиент по весам W1
+        grads['b1'] = np.sum(dhidden1, axis=0, keepdims=True)  # Градиент по смещению b1
 
         # Добавление градиента регуляризации
+        grads['W3'] += reg * W3  # Градиент регуляризации по W3
         grads['W2'] += reg * W2  # Градиент регуляризации по W2
         grads['W1'] += reg * W1  # Градиент регуляризации по W1
 
