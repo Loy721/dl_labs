@@ -63,7 +63,23 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        C, H, W = input_dim
+        self.params['W1'] = np.random.normal(loc=0.0, scale=weight_scale, size=(num_filters, C, filter_size, filter_size))
+        self.params['b1'] = np.zeros(num_filters)
+
+        # параметры max pool
+        pool_height = 2
+        pool_width = 2
+        pool_stride = 2
+        pool_output_height = (H - pool_height) // pool_stride + 1
+        pool_output_width = (W - pool_width) // pool_stride + 1
+
+        self.params['W2'] = np.random.normal(loc=0.0, scale=weight_scale, size=(num_filters * pool_output_height * pool_output_width, hidden_dim))
+        self.params['b2'] = np.zeros(hidden_dim)
+
+        self.params['W3'] = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dim, num_classes))
+        self.params['b3'] = np.zeros(num_classes)
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -102,9 +118,22 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # проход через convolutional layer
+        conv1_out, conv1_cache = conv_forward_fast(X, W1, b1, conv_param)
+        relu1_out, relu1_cache = relu_forward(conv1_out)
+        pool1_out, pool1_cache = max_pool_forward_fast(relu1_out, pool_param)
 
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        pool1_out_reshaped = pool1_out.reshape(pool1_out.shape[0], -1)
+
+        # проход через второй слой
+        affine2_out, affine2_cache = affine_forward(pool1_out_reshaped, W2, b2)
+        relu2_out, relu2_cache = relu_forward(affine2_out)
+
+        # проход через третий слой
+        affine3_out, affine3_cache = affine_forward(relu2_out, W3, b3)
+        scores = affine3_out
+
+    # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -125,7 +154,28 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, dout = softmax_loss(affine3_out, y)
+        loss += 0.5 * self.reg * (np.sum(W1 * W1) + np.sum(W2 * W2) + np.sum(W3 * W3))
+
+        dout, dW3, db3 = affine_backward(dout, affine3_cache)
+
+        # Обратный проход через второй слой
+        dout = relu_backward(dout, relu2_cache)
+        dout, dW2, db2 = affine_backward(dout, affine2_cache)
+
+        # Обратный проход через первый слой
+        dout = dout.reshape(pool1_out.shape)
+        dout = max_pool_backward_fast(dout, pool1_cache)
+        dout = relu_backward(dout, relu1_cache)
+        dx, dW1, db1 = conv_backward_fast(dout, conv1_cache)
+
+        # Добавление регуляризации к градиентам по весам
+        dW3 += self.reg * W3
+        dW2 += self.reg * W2
+        dW1 += self.reg * W1
+
+        # Собираем градиенты в словарь
+        grads = {"W1": dW1, "b1": db1, "W2": dW2, "b2": db2, "W3": dW3, "b3": db3}
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
