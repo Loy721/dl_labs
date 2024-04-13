@@ -1,7 +1,6 @@
 from builtins import range
 from builtins import object
 import numpy as np
-from past.builtins import xrange
 
 
 class KNearestNeighbor(object):
@@ -21,8 +20,10 @@ class KNearestNeighbor(object):
         - y: A numpy array of shape (N,) containing the training labels, where
              y[i] is the label for X[i].
         """
-        self.X_train = X
-        self.y_train = y
+        num_samples = 500
+        random_indices = np.random.choice(X.shape[0], num_samples, replace=False)
+        self.X_train = X[random_indices]
+        self.y_train = y[random_indices]
 
     def predict(self, X, k=1, num_loops=0):
         """
@@ -66,6 +67,7 @@ class KNearestNeighbor(object):
         """
         num_test = X.shape[0]
         num_train = self.X_train.shape[0]
+        print(self.X_train.shape[0])
         dists = np.zeros((num_test, num_train))
         for i in range(num_test):
             for j in range(num_train):
@@ -76,9 +78,8 @@ class KNearestNeighbor(object):
                 # not use a loop over dimension, nor use np.linalg.norm().          #
                 #####################################################################
                 # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-                pass
-
+                squared_diff = np.sum((X[i] - self.X_train[j]) ** 2)
+                dists[i, j] = np.sqrt(squared_diff)
                 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
 
@@ -99,10 +100,9 @@ class KNearestNeighbor(object):
             # points, and store the result in dists[i, :].                        #
             # Do not use np.linalg.norm().                                        #
             #######################################################################
-            # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-            pass
-
+            # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****\
+            squared_diff = np.sum((X[i] - self.X_train) ** 2, axis=1)
+            dists[i, :] = np.sqrt(squared_diff)
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
 
@@ -130,9 +130,11 @@ class KNearestNeighbor(object):
         #       and two broadcast sums.                                         #
         #########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
+        # Compute squared norms of each row in X and X_train
+        # по формуле квадрат разности
+        square_sum = np.add.outer(np.sum(X**2, axis=1), np.sum(self.X_train**2, axis=1))#
+        product_matrix = np.dot(X, self.X_train.T)
+        dists = np.sqrt(square_sum - 2*product_matrix)
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
 
@@ -163,9 +165,7 @@ class KNearestNeighbor(object):
             # Hint: Look up the function numpy.argsort.                             #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-            pass
-
+            closest_y = np.argsort(dists[i])
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
             #########################################################################
             # TODO:                                                                 #
@@ -175,9 +175,10 @@ class KNearestNeighbor(object):
             # label.                                                                #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-            pass
-
+            # количество вхождений каждого класса среди k ближайших соседей
+            counts = np.bincount(closest_y[:k])
+            index_most_comon_element_in_closest_y = np.argmax(counts)
+            y_pred[i] = self.y_train[closest_y[index_most_comon_element_in_closest_y]]
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         return y_pred

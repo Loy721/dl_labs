@@ -36,14 +36,11 @@ def svm_loss_naive(W, X, y, reg):
             margin = scores[j] - correct_class_score + 1 # note delta = 1
             if margin > 0:
                 loss += margin
+                dW[:, j] += X[i]  # обновляем для неправильных классов
+                dW[:, y[i]] -= X[i]  # для правильных
 
-    # Right now the loss is a sum over all training examples, but we want it
-    # to be an average instead so we divide by num_train.
     loss /= num_train
-
-    # Add regularization to the loss.
     loss += reg * np.sum(W * W)
-
     #############################################################################
     # TODO:                                                                     #
     # Compute the gradient of the loss function and store it dW.                #
@@ -54,10 +51,13 @@ def svm_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # Compute average gradient
+    dW /= num_train
+    # Regularize the gradient
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-    
+
     return loss, dW
 
 
@@ -77,9 +77,14 @@ def svm_loss_vectorized(W, X, y, reg):
     # result in loss.                                                           #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    scores = X.dot(W)
 
-    pass
+    margins = np.maximum(0, scores - scores[np.arange(scores.shape[0]), y].reshape(-1, 1) + 1)
+    # присваиваем каждому элементу матрицы ноль, если этот класс корректный
+    margins[np.arange(margins.shape[0]), y] = 0
 
+    loss = np.mean(np.sum(margins, axis=1))
+    loss += reg * np.sum(W * W)
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     #############################################################################
@@ -92,8 +97,15 @@ def svm_loss_vectorized(W, X, y, reg):
     # loss.                                                                     #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    binary = margins
+    # ставим 1 для классов, расстояние до которых хотим увеличить
+    binary[margins > 0] = 1
+    row_sum = np.sum(binary, axis=1)
+    # Устанавливаем значение -row_sum в соответствующие позиции верных классов
+    binary[np.arange(binary.shape[0]), y] = -row_sum
+    dW = X.T.dot(binary)
+    dW /= X.shape[0]
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
